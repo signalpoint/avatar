@@ -3,6 +3,8 @@ The avatar module for DrupalGap provides a UX for users to manage their Drupal p
 
 Just provide a link to the `avatar` page path, and the user will be presented a form to manage their profile picture.
 
+Make sure you're running the latest version of the `Services` module for Drupal.
+
 ## Render Array
 ```
 content['my-picture'] = {
