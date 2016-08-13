@@ -23,50 +23,154 @@ function avatar_menu() {
   var items = {};
   items['avatar'] = {
     title: 'Edit picture',
-    page_callback: 'drupalgap_get_form',
-    page_arguments: ['avatar_form']
+    page_callback: 'avatar_page_default',
+    pageshow: 'avatar_pageshow_default',
+    access_callback: 'avatar_access_callback'
+  };
+  items['avatar/%'] = {
+    title: 'Edit picture',
+    page_callback: 'avatar_page',
+    page_arguments: [1],
+    access_callback: 'avatar_access_callback',
+    access_arguments: [1]
   };
   return items;
 }
 
-function avatar_form(form, form_state) {
+function avatar_access_callback(uid) {
+  if (!uid || !Drupal.user.uid) { return false; }
+  if (uid != Drupal.user.uid && !user_access('administer users')) { return false; }
+  return true;
+}
 
-  form.elements.imageURI = {
-    type: 'hidden',
-    required: true
+function avatar_page_container_id(uid) {
+  return 'avatar-page-container-' + uid ? uid : Drupal.user.uid;
+}
+
+function avatar_page_default() {
+  return avatar_page(Drupal.user.uid);
+}
+function avatar_pageshow_default() {
+  return avatar_pageshow(Drupal.user.uid);
+}
+
+function avatar_page(uid) {
+  var content = {};
+  var attrs = {
+    id: avatar_page_container_id(uid),
+    class: 'avatar-page-container'
   };
+  content['container'] = {
+    markup: '<div ' + drupalgap_attributes(attrs) + '></div>'
+  };
+  return content;
+}
 
-  if (Drupal.user.picture) {
+function avatar_pageshow(uid) {
+  if (!uid) {
+    console.log('Only authenticated users can have avatars.');
+    return;
+  }
+  user_load(uid, {
+    success: function(account) {
+      $('#' + avatar_page_container_id(uid)).html(
+          drupalgap_get_form('avatar_form', account)
+      ).trigger('create');
+    }
+  });
+}
+
+function avatar_form(form, form_state, account) {
+
+  console.log(account);
+
+  form.id += '_' + account.uid;
+  var mode = 'submit';
+
+  if (account.picture && account.picture != '0') {
 
     // User has a picture...
-    form.prefix = theme('avatar', { account: Drupal.user });
-    drupalgap_toast(t('Sorry, this feature is not ready yet...'), 4000);
+    mode = 'delete';
+    form.suffix = theme('avatar', { account: account });
+
+    form.elements['fid'] = {
+      type: 'hidden',
+      value: account.picture.fid,
+      required: true
+    };
+
+    form.elements['submit'] = {
+      type: 'submit',
+      value: t('Delete')
+    };
 
   }
   else {
 
     // User doesn't have a picture...
-    form.prefix = '<div class="messages warning">' + t('No profile picture added.') + '</div>';
+
+    form.elements.imageURI = {
+      type: 'hidden',
+      required: true
+    };
+
+    var items = [];
+    items.push(
+        l(t('Take a photo'), null, {
+          attributes: {
+            onclick: 'avatar_take_photo_onclick(this)',
+            'data-theme': 'b',
+            'data-icon': 'camera',
+            uid: account.uid,
+            class: 'avatar-take-a-photo'
+          }
+        })
+    );
+    // @TODO feature doesn't work!
+    //items.push(
+    //    l(t('Choose a photo'), null, {
+    //      attributes: {
+    //        onclick: 'avatar_choose_photo_onclick(this)',
+    //        'data-theme': 'b'
+    //      }
+    //    })
+    //);
 
     form.elements.controls = {
       markup: '<div data-role="navbar">' +
       theme('item_list', {
-        items: [
-          l(t('Take a photo'), null, { attributes: { onclick: 'avatar_take_photo_onclick(this)' } }),
-          l(t('Choose a photo'), null, { attributes: { onclick: 'avatar_choose_photo_onclick(this)' } })
-        ]
+        items: items
       }) +
       '</div>'
     };
 
+    form.elements['submit'] = {
+      type: 'submit',
+      value: t('Save photo'),
+      options: {
+        attributes: {
+          style: 'display: none;'
+        }
+      }
+    };
+
+    var suffix_attributes = {
+      id: avatar_page_container_id(account.uid) + '-placeholder',
+      class: 'avatar-placeholder-wrapper'
+    };
+    form.suffix = '<div ' + drupalgap_attributes(suffix_attributes) + '></div>';
+
   }
 
-  form.elements['submit'] = {
-    type: 'submit',
-    value: t('Save'),
-    options: { attributes: {
-      style: 'display: none;'
-    } }
+  form.elements.mode = {
+    type: 'hidden',
+    value: mode,
+    required: true
+  };
+  form.elements.uid = {
+    type: 'hidden',
+    value: account.uid,
+    required: true
   };
 
   return form;
@@ -74,10 +178,30 @@ function avatar_form(form, form_state) {
 
 function avatar_form_submit(form, form_state) {
 
+  if (form_state.values.mode == 'delete') {
+    drupalgap_confirm(t('Delete this picture?'), {
+      confirmCallback: function(button) {
+        if (button == 1) { // Ok
+          file_delete(form_state.values.fid, {
+            success: function(result) {
+              if (result[0]) {
+                avatar_pageshow(form_state.values.uid);
+              }
+            }
+          });
+        }
+        else if (button == 2) { } // Cancel
+      }
+    });
+    return;
+  }
+
   // Warn developer if camera quality is potentially high.
   if (drupalgap.settings.camera.quality > 50) {
     console.log('WARNING - avatar - a value over 50 for drupalgap.settings.camera.quality may cause upload issues');
   }
+
+  avatar_show_submit_button(form_state.values.uid, true); // Hide the submit button.
 
   //console.log(form_state.values);
   var imageURI = form_state.values.imageURI;
@@ -113,34 +237,33 @@ function avatar_form_submit(form, form_state) {
 
           // Load the file from Drupal...
           file_load(fid, {
-            success: function(result) {
+            success: function(file) {
 
-              //console.log(result);
+              //console.log(file);
 
               // Save their user account...
               var account = {
-                uid: Drupal.user.uid,
+                uid: form_state.values.uid,
                 status: 1,
-                picture_upload: result
+                picture_upload: file
               };
               user_save(account, {
                 success: function(result) {
-
                   //console.log(result);
 
                   // Reload their user account.
-                  user_load(Drupal.user.uid, {
-                    success: function(account) {
-                      Drupal.user = account;
+                  user_load(account.uid, {
+                    success: function(_account) {
+
+                      if (Drupal.user.uid == account.uid) { Drupal.user = _account; }
 
                       // If a developer set a form action use it, otherwise just sit still.
                       if (form.action) {
                         var options = form.action_options ? form.action_options : null;
                         if (options) { drupalgap_goto(form.action, options); }
                         else { drupalgap_goto(form.action); }
-
                       }
-
+                      else { drupalgap_toast(t('Photo saved.')); }
 
                     }
                   });
@@ -162,19 +285,27 @@ function avatar_form_submit(form, form_state) {
 
 }
 
-function avatar_replace_placeholder(uri) {
-  $('#avatar_form .form_prefix img').attr('src', uri);
+function avatar_replace_placeholder(uri, uid) {
+  $('#avatar_form_' + uid + ' .form_suffix').html(
+      theme('image', {
+        path: uri
+      })
+  ).trigger('create');
+  //attr('src', uri);
 }
 
-function avatar_show_submit_button() {
-  $('#edit-avatar-form-submit').show('slow');
+function avatar_show_submit_button(uid, hide) {
+  var id = 'edit-avatar-form-' + uid + '-submit';
+  if (hide) { $('#' + id).hide('slow'); }
+  else { $('#' + id).show('slow'); }
 }
 
-function avatar_success(imageURI, button) {
-  avatar_replace_placeholder(imageURI);
-  avatar_show_submit_button();
+function avatar_success(imageURI, button, uid) {
+  avatar_replace_placeholder(imageURI, uid);
+  avatar_show_submit_button(uid);
   $(button).removeClass('ui-btn-active');
-  $('#edit-avatar-form-imageuri').val(imageURI);
+  $('a.avatar-take-a-photo').text(t('Take another photo'));
+  $('#edit-avatar-form-' + uid + '-imageuri').val(imageURI);
 }
 
 function avatar_take_photo_onclick(button) {
@@ -182,7 +313,7 @@ function avatar_take_photo_onclick(button) {
     navigator.camera.getPicture(
 
         function(imageURI) {
-          avatar_success(imageURI, button);
+          avatar_success(imageURI, button, $(button).attr('uid'));
         },
 
         function(message) {
@@ -236,4 +367,18 @@ function avatar_choose_photo_onclick(button) {
     }
     console.log(msg);
   }
+}
+
+function avatarToDataUrl(url, callback){
+  var xhr = new XMLHttpRequest();
+  xhr.responseType = 'blob';
+  xhr.onload = function() {
+    var reader  = new FileReader();
+    reader.onloadend = function () {
+      callback(reader.result);
+    };
+    reader.readAsDataURL(xhr.response);
+  };
+  xhr.open('GET', url);
+  xhr.send();
 }
