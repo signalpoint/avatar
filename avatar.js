@@ -181,111 +181,111 @@ function avatar_form(form, form_state, account) {
 
 function avatar_form_submit(form, form_state) {
   try {
-  if (form_state.values.mode == 'delete') {
-    drupalgap_confirm(t('Delete this picture?'), {
-      confirmCallback: function(button) {
-        if (button == 1) { // Ok
-          file_delete(form_state.values.fid, {
-            success: function(result) {
-              if (result[0]) {
-                avatar_pageshow(form_state.values.uid);
-              }
-            }
-          });
-        }
-        else if (button == 2) { } // Cancel
-      }
-    });
-    return;
-  }
-
-  // Warn developer if camera quality is potentially high.
-  if (drupalgap.settings.camera.quality > 50) {
-    console.log('WARNING - avatar - a value over 50 for drupalgap.settings.camera.quality may cause upload issues');
-  }
-
-  avatar_show_submit_button(form_state.values.uid, true); // Hide the submit button.
-
-  //console.log(form_state.values);
-  var imageURI = form_state.values.imageURI;
-  if (imageURI.indexOf('file://') == -1) { imageURI = 'file://' + imageURI; }
-
-  window.resolveLocalFileSystemURL(imageURI, function success(fileEntry) {
-
-    //console.log("got file: " + fileEntry.fullPath);
-    //console.log(fileEntry);
-
-    avatarToDataUrl(fileEntry.nativeURL, function(base64){
-
-      // Base64DataURL
-      //console.log('got the 64');
-
-      var data = {
-        "file":{
-          "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
-          "filename": fileEntry.name,
-          "filepath": "public://" + fileEntry.name
-        }
-      };
-
-      // Upload it to Drupal to get the new file id...
-      $('#edit-avatar-form-submit').text(t('Uploading...'));
-      Drupal.services.call({
-        method: 'POST',
-        path: 'file.json',
-        data: JSON.stringify(data),
-        success: function(result) {
-
-          //console.log(result);
-          var fid = result.fid;
-
-          // Load the file from Drupal...
-          file_load(fid, {
-            success: function(file) {
-
-              //console.log(file);
-
-              // Save their user account...
-              var account = {
-                uid: form_state.values.uid,
-                status: 1,
-                picture_upload: file
-              };
-              user_save(account, {
-                success: function(result) {
-                  //console.log(result);
-
-                  // Reload their user account.
-                  user_load(account.uid, {
-                    success: function(_account) {
-
-                      if (Drupal.user.uid == account.uid) { Drupal.user = _account; }
-
-                      // If a developer set a form action use it, otherwise just sit still.
-                      if (form.action) {
-                        var options = form.action_options ? form.action_options : null;
-                        if (options) { drupalgap_goto(form.action, options); }
-                        else { drupalgap_goto(form.action); }
-                      }
-                      else { drupalgap_toast(t('Photo saved.')); }
-
-                    }
-                  });
-
+    if (form_state.values.mode == 'delete') {
+      drupalgap_confirm(t('Delete this picture?'), {
+        confirmCallback: function(button) {
+          if (button == 1) { // Ok
+            file_delete(form_state.values.fid, {
+              success: function(result) {
+                if (result[0]) {
+                  avatar_pageshow(form_state.values.uid);
                 }
-              });
-
-            }
-          });
-
+              }
+            });
+          }
+          else if (button == 2) { } // Cancel
         }
       });
+      return;
+    }
 
+    // Warn developer if camera quality is potentially high.
+    if (drupalgap.settings.camera.quality > 50) {
+      console.log('WARNING - avatar - a value over 50 for drupalgap.settings.camera.quality may cause upload issues');
+    }
+
+    avatar_show_submit_button(form_state.values.uid, true); // Hide the submit button.
+
+    //console.log(form_state.values);
+    var imageURI = form_state.values.imageURI;
+    if (imageURI.indexOf('file://') == -1) { imageURI = 'file://' + imageURI; }
+
+    window.resolveLocalFileSystemURL(imageURI, function success(fileEntry) {
+
+      //console.log("got file: " + fileEntry.fullPath);
+      //console.log(fileEntry);
+
+      avatarToDataUrl(fileEntry.nativeURL, function(base64){
+
+        // Base64DataURL
+        //console.log('got the 64');
+
+        var data = {
+          "file":{
+            "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
+            "filename": fileEntry.name,
+            "filepath": "public://" + fileEntry.name
+          }
+        };
+
+        // Upload it to Drupal to get the new file id...
+        $('#edit-avatar-form-submit').text(t('Uploading...'));
+        Drupal.services.call({
+          method: 'POST',
+          path: 'file.json',
+          data: JSON.stringify(data),
+          success: function(result) {
+
+            //console.log(result);
+            var fid = result.fid;
+
+            // Load the file from Drupal...
+            file_load(fid, {
+              success: function(file) {
+
+                //console.log(file);
+
+                // Save their user account...
+                var account = {
+                  uid: form_state.values.uid,
+                  status: 1,
+                  picture_upload: file
+                };
+                user_save(account, {
+                  success: function(result) {
+                    //console.log(result);
+
+                    // Reload their user account.
+                    user_load(account.uid, {
+                      success: function(_account) {
+
+                        if (Drupal.user.uid == account.uid) { Drupal.user = _account; }
+
+                        // If a developer set a form action use it, otherwise just sit still.
+                        if (form.action) {
+                          var options = form.action_options ? form.action_options : null;
+                          if (options) { drupalgap_goto(form.action, options); }
+                          else { drupalgap_goto(form.action); }
+                        }
+                        else { drupalgap_toast(t('Photo saved.')); }
+
+                      }
+                    });
+
+                  }
+                });
+
+              }
+            });
+
+          }
+        });
+
+      });
+
+    }, function () {
+      console.log('avatar had an accident, uh oh...', arguments);
     });
-
-  }, function () {
-    console.log('avatar had an accident, uh oh...', arguments);
-  });
   }
   catch (error) { console.log('avatar_form_submit', error); }
 }
