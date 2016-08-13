@@ -38,8 +38,9 @@ function avatar_menu() {
 }
 
 function avatar_access_callback(uid) {
-  if (!uid || !Drupal.user.uid) { return false; }
-  if (uid != Drupal.user.uid && !user_access('administer users')) { return false; }
+  uid = uid ? uid : Drupal.user.uid;
+  if (!uid) { return false; }
+  if (parseInt(uid) != Drupal.user.uid && !user_access('administer users')) { return false; }
   return true;
 }
 
@@ -82,7 +83,7 @@ function avatar_pageshow(uid) {
 
 function avatar_form(form, form_state, account) {
 
-  console.log(account);
+  //console.log(account);
 
   form.id += '_' + account.uid;
   var mode = 'submit';
@@ -122,19 +123,21 @@ function avatar_form(form, form_state, account) {
             'data-theme': 'b',
             'data-icon': 'camera',
             uid: account.uid,
-            class: 'avatar-take-a-photo'
+            class: 'avatar-take-photo'
           }
         })
     );
-    // @TODO feature doesn't work!
-    //items.push(
-    //    l(t('Choose a photo'), null, {
-    //      attributes: {
-    //        onclick: 'avatar_choose_photo_onclick(this)',
-    //        'data-theme': 'b'
-    //      }
-    //    })
-    //);
+    items.push(
+        l(t('Choose a photo'), null, {
+          attributes: {
+            onclick: 'avatar_choose_photo_onclick(this)',
+            'data-theme': 'b',
+            'data-icon': 'grid',
+            uid: account.uid,
+            class: 'avatar-choose-photo'
+          }
+        })
+    );
 
     form.elements.controls = {
       markup: '<div data-role="navbar">' +
@@ -177,7 +180,7 @@ function avatar_form(form, form_state, account) {
 }
 
 function avatar_form_submit(form, form_state) {
-
+  try {
   if (form_state.values.mode == 'delete') {
     drupalgap_confirm(t('Delete this picture?'), {
       confirmCallback: function(button) {
@@ -205,6 +208,7 @@ function avatar_form_submit(form, form_state) {
 
   //console.log(form_state.values);
   var imageURI = form_state.values.imageURI;
+  if (imageURI.indexOf('file://') == -1) { imageURI = 'file://' + imageURI; }
 
   window.resolveLocalFileSystemURL(imageURI, function success(fileEntry) {
 
@@ -280,9 +284,10 @@ function avatar_form_submit(form, form_state) {
     });
 
   }, function () {
-    console.log('avatar had an accident, uh oh...');
+    console.log('avatar had an accident, uh oh...', arguments);
   });
-
+  }
+  catch (error) { console.log('avatar_form_submit', error); }
 }
 
 function avatar_replace_placeholder(uri, uid) {
@@ -300,11 +305,17 @@ function avatar_show_submit_button(uid, hide) {
   else { $('#' + id).show('slow'); }
 }
 
-function avatar_success(imageURI, button, uid) {
+function avatar_success(imageURI, button, mode) {
+  var uid = $(button).attr('uid');
   avatar_replace_placeholder(imageURI, uid);
   avatar_show_submit_button(uid);
   $(button).removeClass('ui-btn-active');
-  $('a.avatar-take-a-photo').text(t('Take another photo'));
+  if (mode == 'take-photo') {
+    $('a.avatar-take-photo').text(t('Take another photo'));
+  }
+  if (mode == 'choose-photo') {
+    $('a.avatar-choose-photo').text(t('Choose another photo'));
+  }
   $('#edit-avatar-form-' + uid + '-imageuri').val(imageURI);
 }
 
@@ -313,7 +324,7 @@ function avatar_take_photo_onclick(button) {
     navigator.camera.getPicture(
 
         function(imageURI) {
-          avatar_success(imageURI, button, $(button).attr('uid'));
+          avatar_success(imageURI, button, 'choose-photo');
         },
 
         function(message) {
@@ -343,7 +354,7 @@ function avatar_choose_photo_onclick(button) {
     navigator.camera.getPicture(
 
         function(imageURI) {
-          avatar_success(imageURI, button);
+          avatar_success(imageURI, button, 'choose-photo');
         },
 
         function(message) {
