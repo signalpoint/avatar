@@ -68,3 +68,23 @@ function my_module_form_alter(form, form_state, form_id) {
   
 }
 ```
+
+## Hooks
+
+```
+/**
+ * Implements hook_avatar_action().
+ */
+function my_module_avatar_action(op, form_state_values, file) {
+  switch (op) {
+    case 'save':
+        $('img.foo').attr('src', drupalgap_image_path(file.uri));
+        drupalgap_toast('Avatar updated!');
+      break;
+    case 'delete':
+      $('img.foo').attr('src', drupalgap.settings.avatar.defaultPicture);
+      break;
+  }
+}
+
+```
