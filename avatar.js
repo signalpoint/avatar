@@ -72,6 +72,7 @@ function avatar_pageshow(uid) {
     console.log('Only authenticated users can have avatars.');
     return;
   }
+  _entity_local_storage_delete('user', uid);
   user_load(uid, {
     success: function(account) {
       $('#' + avatar_page_container_id(uid)).html(
@@ -79,6 +80,11 @@ function avatar_pageshow(uid) {
       ).trigger('create');
     }
   });
+}
+
+function avatar_has_picture(account) {
+  account = account ? account : Drupal.user;
+  return account.picture && account.picture != '0';
 }
 
 function avatar_form(form, form_state, account) {
@@ -187,9 +193,17 @@ function avatar_form_submit(form, form_state) {
           if (button == 1) { // Ok
             file_delete(form_state.values.fid, {
               success: function(result) {
-                if (result[0]) {
-                  avatar_pageshow(form_state.values.uid);
-                }
+                user_save({
+                  uid: form_state.values.uid,
+                  picture: 0
+                }, {
+                  success: function() {
+                    if (result[0]) {
+                      avatar_pageshow(form_state.values.uid);
+                      module_invoke_all('avatar_action', 'delete', form_state.values);
+                    }
+                  }
+                });
               }
             });
           }
@@ -256,10 +270,12 @@ function avatar_form_submit(form, form_state) {
                     //console.log(result);
 
                     // Reload their user account.
-                    user_load(account.uid, {
-                      success: function(_account) {
+                    //user_load(account.uid, {
+                      //success: function(_account) {
 
-                        if (Drupal.user.uid == account.uid) { Drupal.user = _account; }
+                        if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
+
+                        module_invoke_all('avatar_action', 'save', form_state.values, file);
 
                         // If a developer set a form action use it, otherwise just sit still.
                         if (form.action) {
@@ -267,10 +283,9 @@ function avatar_form_submit(form, form_state) {
                           if (options) { drupalgap_goto(form.action, options); }
                           else { drupalgap_goto(form.action); }
                         }
-                        else { drupalgap_toast(t('Photo saved.')); }
 
-                      }
-                    });
+                      //}
+                    //});
 
                   }
                 });
