@@ -1,13 +1,22 @@
 function theme_avatar(variables) {
   var mode = variables.mode ? variables.mode : 'default';
+  
   var account = variables.account ? variables.account : Drupal.user;
+
+  var imagestyle = variables.imagestyle;
+  
   var options = {
     attributes: {
       class: 'avatar avatar-' + mode
     }
   };
+  
   if (account.uid && account.picture && account.picture != '0') {
-    options.path = drupalgap_image_path(account.picture.uri);
+    if (imagestyle) {
+      options.path = image_style_url(imagestyle, account.picture.uri);
+    } else {
+      options.path = drupalgap_image_path(account.picture.uri);
+    }
   }
   else if (drupalgap.settings.avatar && drupalgap.settings.avatar.defaultPicture) {
     options.path = drupalgap.settings.avatar.defaultPicture;
@@ -15,6 +24,7 @@ function theme_avatar(variables) {
   if (options.path) { return theme('image', options); }
   return '';
 }
+
 
 /**
  * Implements hook_menu().
