@@ -12,7 +12,7 @@ function theme_avatar(variables) {
   };
   
   if (account.uid && account.picture && account.picture != '0') {
-    if (typeof imagestyle != 'undefined') {
+    if (imagestyle) {
       options.path = image_style_url(imagestyle, account.picture.uri);
     } else {
       options.path = drupalgap_image_path(account.picture.uri);
