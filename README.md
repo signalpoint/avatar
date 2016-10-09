@@ -50,6 +50,25 @@ content['my-picture'] = {
 var html = theme('avatar', { account: Drupal.user });
 ```
 
+## Image Styles
+
+### Render Array
+```
+content['my-picture'] = {
+  theme: 'avatar',
+  account: Drupal.user,
+  style_name: 'thumbnail'
+};
+```
+
+### HTML String
+```
+var html = theme('avatar', {
+  account: Drupal.user,
+  style_name: 'thumbnail'
+});
+```
+
 ## Form action and options
 
 By default when the user submits the avatar form it will update the user's picture and then wait for the user to navigate somewhere. You may choose which page to redirect to with form `action` and `action_options`.
