@@ -7,13 +7,14 @@ function theme_avatar(variables) {
     }
   };
   if (account.uid && account.picture && account.picture != '0') {
-    options.path = drupalgap_image_path(account.picture.uri);
+    options.path = variables.style_name ?
+        image_style_url(variables.style_name, account.picture.uri) :
+        drupalgap_image_path(account.picture.uri);
   }
   else if (drupalgap.settings.avatar && drupalgap.settings.avatar.defaultPicture) {
     options.path = drupalgap.settings.avatar.defaultPicture;
   }
-  if (options.path) { return theme('image', options); }
-  return '';
+  return options.path ? theme('image', options) : '';
 }
 
 /**
