@@ -239,7 +239,8 @@ function avatar_form_submit(form, form_state) {
           "file":{
             "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
             "filename": fileEntry.name,
-            "filepath": "public://" + fileEntry.name
+            "filepath": "public://" + fileEntry.name,
+            uid: Drupal.user.uid
           }
         };
 
