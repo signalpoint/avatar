@@ -154,6 +154,15 @@ function avatar_form(form, form_state, account) {
       '</div>'
     };
 
+    // Placeholder for temp input addition
+    var new_input = 'placeholder';
+    var input_html = '<input style="display:none" type="file" id="image_uploads"';
+    input_html += 'name="image_uploads" accept=".jpg, .jpeg, .png">';
+    form.elements[new_input] = {
+      markup: input_html
+    };
+
+
     form.elements['submit'] = {
       type: 'submit',
       value: t('Save photo'),
@@ -389,12 +398,43 @@ function avatar_choose_photo_onclick(button) {
     );
   }
   else {
-    var msg = 'Feature does not work in web app mode, yet...';
-    if (Drupal.settings.debug) {
-      drupalgap_toast(msg);
-    }
-    console.log(msg);
+    // Set the placeholder input
+    var input = document.querySelector('#image_uploads');
+
+    // Click the placeholder input
+    input.click();
+
+    // Show the save button (possibly only after load would be ideal)
+    avatar_show_submit_button(Drupal.user.uid);
+
+    // Grab the file from the file input element.
+    //var file = document.querySelector('#image_uploads').files[0];
+    var file = input.files[0];
+    //if (!file) { return; }
+    console.log('file input', file);
+
+    // Init a file reader.
+    var reader = new FileReader();
+
+    // Step 2: Get ready for when the file is loaded...
+    reader.addEventListener("change", function () {
+      // The file has been loaded...
+      console.log('event!');
+
+      //dg_file.loaded(file, reader.result, inputId, previewId, formInputId);
+      //dg_file.loaded(file, reader.result, fileInputId);
+
+    }, false);
+
+    // Step 1: Load the file chosen by the user and circle back to the "load" event listener.
+    if (file) { reader.readAsDataURL(file); }
+
+    //avatar_success(imageURI, button, 'choose-photo');
+
+    console.log('hit');
   }
+
+
 }
 
 function avatarToDataUrl(url, callback){
