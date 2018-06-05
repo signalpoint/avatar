@@ -157,7 +157,7 @@ function avatar_form(form, form_state, account) {
     // Placeholder for temp input addition
     var new_input = 'placeholder';
     var input_html = '<input style="display:none" type="file" id="image_uploads"';
-    input_html += 'name="image_uploads" accept=".jpg, .jpeg, .png">';
+    input_html += 'name="image_uploads" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
     form.elements[new_input] = {
       markup: input_html
     };
@@ -400,42 +400,28 @@ function avatar_choose_photo_onclick(button) {
   else {
     // Set the placeholder input
     var input = document.querySelector('#image_uploads');
-
     // Click the placeholder input
     input.click();
-
-    // Show the save button (possibly only after load would be ideal)
-    avatar_show_submit_button(Drupal.user.uid);
-
-    // Grab the file from the file input element.
-    //var file = document.querySelector('#image_uploads').files[0];
-    var file = input.files[0];
-    //if (!file) { return; }
-    console.log('file input', file);
-
-    // Init a file reader.
-    var reader = new FileReader();
-
-    // Step 2: Get ready for when the file is loaded...
-    reader.addEventListener("change", function () {
-      // The file has been loaded...
-      console.log('event!');
-
-      //dg_file.loaded(file, reader.result, inputId, previewId, formInputId);
-      //dg_file.loaded(file, reader.result, fileInputId);
-
-    }, false);
-
-    // Step 1: Load the file chosen by the user and circle back to the "load" event listener.
-    if (file) { reader.readAsDataURL(file); }
-
-    //avatar_success(imageURI, button, 'choose-photo');
-
-    console.log('hit');
   }
-
-
 }
+
+function avatar_web_load_preview() {
+  // Set the placeholder input.
+  var input = document.querySelector('#image_uploads');
+  // Grab the file from the file input element.
+  var file = input.files[0];
+  // Init a file reader.
+  var reader = new FileReader();
+  // Set and event listener for when the file is loaded from the input.
+  reader.addEventListener("load", function () {
+    // Load the preview
+    var button = document.getElementsByClassName('avatar-choose-photo');
+    avatar_success(reader.result, button, 'choose-photo');
+  }, false);
+  // Load the file chosen by the user and circle back to the "load" event listener.
+  if (file) { reader.readAsDataURL(file); }
+}
+
 
 function avatarToDataUrl(url, callback){
   var xhr = new XMLHttpRequest();
