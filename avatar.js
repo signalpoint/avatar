@@ -223,6 +223,86 @@ function avatar_form_submit(form, form_state) {
       return;
     }
 
+    // WEBAPP
+    if (drupalgap.settings.mode === 'web-app') {
+
+      console.log('web-app', form);
+
+      avatarToDataUrl(form_state.values.imageURI, function(base64){
+
+        // Base64DataURL
+        //console.log('got the 64');
+
+        var data = {
+          "file":{
+            "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
+            "filename": "test.jpg",
+            "filepath": "public://" + "test.jpg",
+            uid: Drupal.user.uid
+          }
+        };
+
+        // Upload it to Drupal to get the new file id...
+        $('#edit-avatar-form-submit').text(t('Uploading...'));
+        Drupal.services.call({
+          method: 'POST',
+          path: 'file.json',
+          data: JSON.stringify(data),
+          success: function(result) {
+
+            //console.log(result);
+            var fid = result.fid;
+
+            // Load the file from Drupal...
+            file_load(fid, {
+              success: function(file) {
+
+                //console.log(file);
+
+                // Save their user account...
+                var account = {
+                  uid: form_state.values.uid,
+                  status: 1,
+                  picture_upload: file
+                };
+                user_save(account, {
+                  success: function(result) {
+                    //console.log(result);
+
+                    // Reload their user account.
+                    //user_load(account.uid, {
+                      //success: function(_account) {
+
+                        if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
+
+                        module_invoke_all('avatar_action', 'save', form_state.values, file);
+
+                        // If a developer set a form action use it, otherwise just sit still.
+                        if (form.action) {
+                          var options = form.action_options ? form.action_options : null;
+                          if (options) { drupalgap_goto(form.action, options); }
+                          else { drupalgap_goto(form.action); }
+                        }
+
+                      //}
+                    //});
+
+                  }
+                });
+
+              }
+            });
+
+          }
+        });
+
+      });
+
+
+      return;
+    }
+
+
     // Warn developer if camera quality is potentially high.
     if (drupalgap.settings.camera.quality > 50) {
       console.log('WARNING - avatar - a value over 50 for drupalgap.settings.camera.quality may cause upload issues');
@@ -398,9 +478,9 @@ function avatar_choose_photo_onclick(button) {
     );
   }
   else {
-    // Set the placeholder input
+    // Set the placeholder input.
     var input = document.querySelector('#image_uploads');
-    // Click the placeholder input
+    // Click the placeholder input.
     input.click();
   }
 }
@@ -414,7 +494,7 @@ function avatar_web_load_preview() {
   var reader = new FileReader();
   // Set and event listener for when the file is loaded from the input.
   reader.addEventListener("load", function () {
-    // Load the preview
+    // Load the preview.
     var button = document.getElementsByClassName('avatar-choose-photo');
     avatar_success(reader.result, button, 'choose-photo');
   }, false);
