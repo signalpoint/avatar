@@ -155,12 +155,14 @@ function avatar_form(form, form_state, account) {
     };
 
     // Placeholder for temp input addition
-    var new_input = 'placeholder';
-    var input_html = '<input style="display:none" type="file" id="avatar_image_upload"';
-    input_html += 'name="avatar_image_upload" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
-    form.elements[new_input] = {
-      markup: input_html
-    };
+    if (drupalgap.settings.mode === 'web-app') {
+      var new_input = 'placeholder';
+      var input_html = '<input style="display:none" type="file" id="avatar_image_upload"';
+      input_html += 'name="avatar_image_upload" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
+      form.elements[new_input] = {
+        markup: input_html
+      };
+    }
 
 
     form.elements['submit'] = {
@@ -227,79 +229,10 @@ function avatar_form_submit(form, form_state) {
     if (drupalgap.settings.mode === 'web-app') {
 
       // Pull the original file name from the image upload.
-      img_file_name = form_state.values.imageURI.split('filename=')[1].split(',')[0];
-
+      var img_file_name = form_state.values.imageURI.split('filename=')[1].split(',')[0];
       avatarToDataUrl(form_state.values.imageURI, function(base64){
-
-        // Base64DataURL
-        //console.log('got the 64');
-
-        var data = {
-          "file":{
-            "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
-            "filename": img_file_name,
-            "filepath": "public://" + img_file_name,
-            uid: Drupal.user.uid
-          }
-        };
-
-        // Upload it to Drupal to get the new file id...
-        $('#edit-avatar-form-submit').text(t('Uploading...'));
-        Drupal.services.call({
-          method: 'POST',
-          path: 'file.json',
-          data: JSON.stringify(data),
-          success: function(result) {
-
-            //console.log(result);
-            var fid = result.fid;
-
-            // Load the file from Drupal...
-            file_load(fid, {
-              success: function(file) {
-
-                //console.log(file);
-
-                // Save their user account...
-                var account = {
-                  uid: form_state.values.uid,
-                  status: 1,
-                  picture_upload: file
-                };
-                user_save(account, {
-                  success: function(result) {
-                    //console.log(result);
-
-                    // Reload their user account.
-                    //user_load(account.uid, {
-                      //success: function(_account) {
-
-                        if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
-
-                        module_invoke_all('avatar_action', 'save', form_state.values, file);
-
-                        // If a developer set a form action use it, otherwise just sit still.
-                        if (form.action) {
-                          var options = form.action_options ? form.action_options : null;
-                          if (options) { drupalgap_goto(form.action, options); }
-                          else { drupalgap_goto(form.action); }
-                        }
-
-                      //}
-                    //});
-
-                  }
-                });
-
-              }
-            });
-
-          }
-        });
-
+        avatarToDataUrlSuccess(base64, img_file_name);
       });
-
-
       return;
     }
 
@@ -321,73 +254,7 @@ function avatar_form_submit(form, form_state) {
       //console.log(fileEntry);
 
       avatarToDataUrl(fileEntry.nativeURL, function(base64){
-
-        // Base64DataURL
-        //console.log('got the 64');
-
-        var data = {
-          "file":{
-            "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
-            "filename": fileEntry.name,
-            "filepath": "public://" + fileEntry.name,
-            uid: Drupal.user.uid
-          }
-        };
-
-        // Upload it to Drupal to get the new file id...
-        $('#edit-avatar-form-submit').text(t('Uploading...'));
-        Drupal.services.call({
-          method: 'POST',
-          path: 'file.json',
-          data: JSON.stringify(data),
-          success: function(result) {
-
-            //console.log(result);
-            var fid = result.fid;
-
-            // Load the file from Drupal...
-            file_load(fid, {
-              success: function(file) {
-
-                //console.log(file);
-
-                // Save their user account...
-                var account = {
-                  uid: form_state.values.uid,
-                  status: 1,
-                  picture_upload: file
-                };
-                user_save(account, {
-                  success: function(result) {
-                    //console.log(result);
-
-                    // Reload their user account.
-                    //user_load(account.uid, {
-                      //success: function(_account) {
-
-                        if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
-
-                        module_invoke_all('avatar_action', 'save', form_state.values, file);
-
-                        // If a developer set a form action use it, otherwise just sit still.
-                        if (form.action) {
-                          var options = form.action_options ? form.action_options : null;
-                          if (options) { drupalgap_goto(form.action, options); }
-                          else { drupalgap_goto(form.action); }
-                        }
-
-                      //}
-                    //});
-
-                  }
-                });
-
-              }
-            });
-
-          }
-        });
-
+        avatarToDataUrlSuccess(base64, fileEntry.name);
       });
 
     }, function () {
@@ -396,6 +263,61 @@ function avatar_form_submit(form, form_state) {
   }
   catch (error) { console.log('avatar_form_submit', error); }
 }
+
+function avatarToDataUrlSuccess(base64, filename) {
+  var data = {
+    "file":{
+      "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
+      "filename": filename,
+      "filepath": "public://" + filename,
+      uid: Drupal.user.uid
+    }
+  };
+
+  // Upload it to Drupal to get the new file id...
+  $('#edit-avatar-form-submit').text(t('Uploading...'));
+  Drupal.services.call({
+    method: 'POST',
+    path: 'file.json',
+    data: JSON.stringify(data),
+    success: function(result) {
+
+      var fid = result.fid;
+
+      // Load the file from Drupal...
+      file_load(fid, {
+        success: function(file) {
+
+          // Save their user account...
+          var account = {
+            uid: form_state.values.uid,
+            status: 1,
+            picture_upload: file
+          };
+          user_save(account, {
+            success: function(result) {
+
+              if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
+
+              module_invoke_all('avatar_action', 'save', form_state.values, file);
+
+              // If a developer set a form action use it, otherwise just sit still.
+              if (form.action) {
+                var options = form.action_options ? form.action_options : null;
+                if (options) { drupalgap_goto(form.action, options); }
+                else { drupalgap_goto(form.action); }
+              }
+
+            }
+          });
+
+        }
+      });
+
+    }
+  });
+}
+
 
 function avatar_replace_placeholder(uri, uid) {
   $('#avatar_form_' + uid + ' .form_suffix').html(
