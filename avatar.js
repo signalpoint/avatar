@@ -156,8 +156,8 @@ function avatar_form(form, form_state, account) {
 
     // Placeholder for temp input addition
     var new_input = 'placeholder';
-    var input_html = '<input style="display:none" type="file" id="image_uploads"';
-    input_html += 'name="image_uploads" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
+    var input_html = '<input style="display:none" type="file" id="avatar_image_upload"';
+    input_html += 'name="avatar_image_upload" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
     form.elements[new_input] = {
       markup: input_html
     };
@@ -480,7 +480,7 @@ function avatar_choose_photo_onclick(button) {
   }
   else {
     // Set the placeholder input.
-    var input = document.querySelector('#image_uploads');
+    var input = document.querySelector('#avatar_image_upload');
     // Click the placeholder input.
     input.click();
   }
@@ -488,7 +488,7 @@ function avatar_choose_photo_onclick(button) {
 
 function avatar_web_load_preview() {
   // Set the placeholder input.
-  var input = document.querySelector('#image_uploads');
+  var input = document.querySelector('#avatar_image_upload');
   // Grab the file from the file input element.
   var file = input.files[0];
   // Init a file reader.
