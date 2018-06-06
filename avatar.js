@@ -154,6 +154,17 @@ function avatar_form(form, form_state, account) {
       '</div>'
     };
 
+    // Placeholder for temp input addition
+    if (drupalgap.settings.mode === 'web-app') {
+      var new_input = 'placeholder';
+      var input_html = '<input style="display:none" type="file" id="avatar_image_upload"';
+      input_html += 'name="avatar_image_upload" onchange="avatar_web_load_preview();" accept=".jpg, .jpeg, .png">';
+      form.elements[new_input] = {
+        markup: input_html
+      };
+    }
+
+
     form.elements['submit'] = {
       type: 'submit',
       value: t('Save photo'),
@@ -214,6 +225,18 @@ function avatar_form_submit(form, form_state) {
       return;
     }
 
+    // WEBAPP
+    if (drupalgap.settings.mode === 'web-app') {
+
+      // Pull the original file name from the image upload.
+      var img_file_name = form_state.values.imageURI.split('filename=')[1].split(',')[0];
+      avatarToDataUrl(form_state.values.imageURI, function(base64){
+        avatarToDataUrlSuccess(base64, img_file_name, form, form_state);
+      });
+      return;
+    }
+
+
     // Warn developer if camera quality is potentially high.
     if (drupalgap.settings.camera.quality > 50) {
       console.log('WARNING - avatar - a value over 50 for drupalgap.settings.camera.quality may cause upload issues');
@@ -231,73 +254,7 @@ function avatar_form_submit(form, form_state) {
       //console.log(fileEntry);
 
       avatarToDataUrl(fileEntry.nativeURL, function(base64){
-
-        // Base64DataURL
-        //console.log('got the 64');
-
-        var data = {
-          "file":{
-            "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
-            "filename": fileEntry.name,
-            "filepath": "public://" + fileEntry.name,
-            uid: Drupal.user.uid
-          }
-        };
-
-        // Upload it to Drupal to get the new file id...
-        $('#edit-avatar-form-submit').text(t('Uploading...'));
-        Drupal.services.call({
-          method: 'POST',
-          path: 'file.json',
-          data: JSON.stringify(data),
-          success: function(result) {
-
-            //console.log(result);
-            var fid = result.fid;
-
-            // Load the file from Drupal...
-            file_load(fid, {
-              success: function(file) {
-
-                //console.log(file);
-
-                // Save their user account...
-                var account = {
-                  uid: form_state.values.uid,
-                  status: 1,
-                  picture_upload: file
-                };
-                user_save(account, {
-                  success: function(result) {
-                    //console.log(result);
-
-                    // Reload their user account.
-                    //user_load(account.uid, {
-                      //success: function(_account) {
-
-                        if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
-
-                        module_invoke_all('avatar_action', 'save', form_state.values, file);
-
-                        // If a developer set a form action use it, otherwise just sit still.
-                        if (form.action) {
-                          var options = form.action_options ? form.action_options : null;
-                          if (options) { drupalgap_goto(form.action, options); }
-                          else { drupalgap_goto(form.action); }
-                        }
-
-                      //}
-                    //});
-
-                  }
-                });
-
-              }
-            });
-
-          }
-        });
-
+        avatarToDataUrlSuccess(base64, fileEntry.name, form, form_state);
       });
 
     }, function () {
@@ -306,6 +263,61 @@ function avatar_form_submit(form, form_state) {
   }
   catch (error) { console.log('avatar_form_submit', error); }
 }
+
+function avatarToDataUrlSuccess(base64, filename, form, form_state) {
+  var data = {
+    "file":{
+      "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
+      "filename": filename,
+      "filepath": "public://" + filename,
+      uid: Drupal.user.uid
+    }
+  };
+
+  // Upload it to Drupal to get the new file id...
+  $('#edit-avatar-form-submit').text(t('Uploading...'));
+  Drupal.services.call({
+    method: 'POST',
+    path: 'file.json',
+    data: JSON.stringify(data),
+    success: function(result) {
+
+      var fid = result.fid;
+
+      // Load the file from Drupal...
+      file_load(fid, {
+        success: function(file) {
+
+          // Save their user account...
+          var account = {
+            uid: form_state.values.uid,
+            status: 1,
+            picture_upload: file
+          };
+          user_save(account, {
+            success: function(result) {
+
+              if (Drupal.user.uid == account.uid) { Drupal.user.picture = file; }
+
+              module_invoke_all('avatar_action', 'save', form_state.values, file);
+
+              // If a developer set a form action use it, otherwise just sit still.
+              if (form.action) {
+                var options = form.action_options ? form.action_options : null;
+                if (options) { drupalgap_goto(form.action, options); }
+                else { drupalgap_goto(form.action); }
+              }
+
+            }
+          });
+
+        }
+      });
+
+    }
+  });
+}
+
 
 function avatar_replace_placeholder(uri, uid) {
   $('#avatar_form_' + uid + ' .form_suffix').html(
@@ -389,13 +401,37 @@ function avatar_choose_photo_onclick(button) {
     );
   }
   else {
-    var msg = 'Feature does not work in web app mode, yet...';
-    if (Drupal.settings.debug) {
-      drupalgap_toast(msg);
-    }
-    console.log(msg);
+    // Set the placeholder input.
+    var input = document.querySelector('#avatar_image_upload');
+    // Click the placeholder input.
+    input.click();
   }
 }
+
+function avatar_web_load_preview() {
+  // Set the placeholder input.
+  var input = document.querySelector('#avatar_image_upload');
+  // Grab the file from the file input element.
+  var file = input.files[0];
+  // Init a file reader.
+  var reader = new FileReader();
+  // Set and event listener for when the file is loaded from the input.
+  reader.addEventListener("load", function () {
+    // Load the preview.
+    var button = document.getElementsByClassName('avatar-choose-photo');
+    // Split the data for file name insert.
+    data_start = reader.result.split(',')[0];
+    data_end = reader.result.split(',')[1];
+    // Add the file name to the data image.
+    file = "filename=" + file.name + ",";
+    data = data_start + ";" + file + data_end;
+    // Preview successful.
+    avatar_success(data, button, 'choose-photo');
+  }, false);
+  // Load the file chosen by the user and circle back to the "load" event listener.
+  if (file) { reader.readAsDataURL(file); }
+}
+
 
 function avatarToDataUrl(url, callback){
   var xhr = new XMLHttpRequest();
