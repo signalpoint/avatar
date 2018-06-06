@@ -226,7 +226,8 @@ function avatar_form_submit(form, form_state) {
     // WEBAPP
     if (drupalgap.settings.mode === 'web-app') {
 
-      console.log('web-app', form);
+      // Pull the original file name from the image upload.
+      img_file_name = form_state.values.imageURI.split('filename=')[1].split(',')[0];
 
       avatarToDataUrl(form_state.values.imageURI, function(base64){
 
@@ -236,8 +237,8 @@ function avatar_form_submit(form, form_state) {
         var data = {
           "file":{
             "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
-            "filename": "test.jpg",
-            "filepath": "public://" + "test.jpg",
+            "filename": img_file_name,
+            "filepath": "public://" + img_file_name,
             uid: Drupal.user.uid
           }
         };
@@ -496,7 +497,14 @@ function avatar_web_load_preview() {
   reader.addEventListener("load", function () {
     // Load the preview.
     var button = document.getElementsByClassName('avatar-choose-photo');
-    avatar_success(reader.result, button, 'choose-photo');
+    // Split the data for file name insert.
+    data_start = reader.result.split(',')[0];
+    data_end = reader.result.split(',')[1];
+    // Add the file name to the data image.
+    file = "filename=" + file.name + ",";
+    data = data_start + ";" + file + data_end;
+    // Preview successful.
+    avatar_success(data, button, 'choose-photo');
   }, false);
   // Load the file chosen by the user and circle back to the "load" event listener.
   if (file) { reader.readAsDataURL(file); }
