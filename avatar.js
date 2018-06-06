@@ -231,7 +231,7 @@ function avatar_form_submit(form, form_state) {
       // Pull the original file name from the image upload.
       var img_file_name = form_state.values.imageURI.split('filename=')[1].split(',')[0];
       avatarToDataUrl(form_state.values.imageURI, function(base64){
-        avatarToDataUrlSuccess(base64, img_file_name);
+        avatarToDataUrlSuccess(base64, img_file_name, form, form_state);
       });
       return;
     }
@@ -254,7 +254,7 @@ function avatar_form_submit(form, form_state) {
       //console.log(fileEntry);
 
       avatarToDataUrl(fileEntry.nativeURL, function(base64){
-        avatarToDataUrlSuccess(base64, fileEntry.name);
+        avatarToDataUrlSuccess(base64, fileEntry.name, form, form_state);
       });
 
     }, function () {
@@ -264,7 +264,7 @@ function avatar_form_submit(form, form_state) {
   catch (error) { console.log('avatar_form_submit', error); }
 }
 
-function avatarToDataUrlSuccess(base64, filename) {
+function avatarToDataUrlSuccess(base64, filename, form, form_state) {
   var data = {
     "file":{
       "file": base64.substring( base64.indexOf(',') + 1 ), // Remove the e.g. "data:image/jpeg;base64," from the front of the string.
